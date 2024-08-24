@@ -8,6 +8,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class ProductPage {
+	// Navegador
     private WebDriver driver;
 
     private By addToCartButton = By.linkText("Add to cart");
