@@ -15,7 +15,6 @@ import pages.ProductPage;
 import java.time.Duration;
 
 public class PurchaseTest {
-    // Elementos web de la página
 	private WebDriver driver;
     private HomePage homePage;
     private ProductPage productPage;
