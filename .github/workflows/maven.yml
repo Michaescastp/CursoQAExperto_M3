@@ -31,25 +31,31 @@ jobs:
         wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
         sudo apt install -y ./google-chrome-stable_current_amd64.deb
 
-        # Obtener la versión instalada de Chrome
-        CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+')
+        # Obtener la versión completa de Chrome (ej: 135.0.7049.52)
+        CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+\.\d+')
         echo "Installed Chrome version: $CHROME_VERSION"
 
-        # Descargar el ChromeDriver que coincida
-        CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" \
-          | jq -r --arg ver "$CHROME_VERSION" '.channels.Stable.versions[] 
-          | select(.version | startswith($ver)) 
-          | .downloads.chromedriver[] 
-          | select(.platform == "linux64") 
-          | .url' | head -n 1)
+        # Buscar ChromeDriver exacto para esa versión
+        CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" \
+          | jq -r --arg ver "$CHROME_VERSION" '
+            .versions[] 
+            | select(.version == $ver) 
+            | .downloads.chromedriver[] 
+            | select(.platform == "linux64") 
+            | .url' | head -n 1)
 
-        echo "Downloading ChromeDriver from: $CHROMEDRIVER_URL"
+        if [ -z "$CHROMEDRIVER_URL" ]; then
+          echo "❌ No se encontró un ChromeDriver para la versión $CHROME_VERSION"
+          exit 1
+        fi
+
+        echo "✅ Descargando ChromeDriver desde: $CHROMEDRIVER_URL"
         wget -O chromedriver.zip "$CHROMEDRIVER_URL"
         unzip chromedriver.zip
         sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
         sudo chmod +x /usr/bin/chromedriver
 
-        # Verificar versión final
+        # Verificar versiones
         chromedriver --version
         google-chrome --version
 
