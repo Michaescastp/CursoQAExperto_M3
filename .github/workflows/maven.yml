@@ -8,12 +8,10 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -22,53 +20,14 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    - name: Install dependencies and matching Chrome + ChromeDriver
+    - name: Install dependencies and Google Chrome (only)
       run: |
         sudo apt-get update
         sudo apt-get install -y wget unzip curl jq xvfb
-
-        # Instalar Google Chrome estable
         wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
         sudo apt install -y ./google-chrome-stable_current_amd64.deb
-
-        # Obtener la versión completa de Chrome (ej: 135.0.7049.52)
-        CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+\.\d+')
-        echo "Installed Chrome version: $CHROME_VERSION"
-
-        # Buscar ChromeDriver exacto para esa versión
-        CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" \
-          | jq -r --arg ver "$CHROME_VERSION" '
-            .versions[] 
-            | select(.version == $ver) 
-            | .downloads.chromedriver[] 
-            | select(.platform == "linux64") 
-            | .url' | head -n 1)
-
-        if [ -z "$CHROMEDRIVER_URL" ]; then
-          echo "❌ No se encontró un ChromeDriver para la versión $CHROME_VERSION"
-          exit 1
-        fi
-
-        echo "✅ Descargando ChromeDriver desde: $CHROMEDRIVER_URL"
-        wget -O chromedriver.zip "$CHROMEDRIVER_URL"
-        unzip chromedriver.zip
-        sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
-        sudo chmod +x /usr/bin/chromedriver
-
-        # Verificar versiones
-        chromedriver --version
         google-chrome --version
 
-    - name: Start xvfb (virtual display)
+    - name: Run tests with Maven
       run: |
-        export DISPLAY=:99
-        nohup Xvfb :99 -ac -screen 0 1920x1080x24 > /dev/null 2>&1 &
-        echo "Started virtual display at DISPLAY=:99"
-        echo "DISPLAY=:99" >> $GITHUB_ENV
-
-    - name: Run Maven tests
-      run: mvn clean test
-
-    - name: Update dependency graph (optional)
-      uses: advanced-security/maven-dependency-submission-action@v4
-
+        xvfb-run mvn clean test
