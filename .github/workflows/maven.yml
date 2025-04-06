@@ -3,11 +3,9 @@ name: Java CI with Maven and Selenium
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,14 +18,5 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    - name: Install dependencies and Google Chrome (only)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y wget unzip curl jq xvfb
-        wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-        sudo apt install -y ./google-chrome-stable_current_amd64.deb
-        google-chrome --version
-
     - name: Run tests with Maven
-      run: |
-        xvfb-run mvn clean test
+      run: mvn clean test
