@@ -1,4 +1,4 @@
-name: Java CI with Selenium, Maven and TestNG
+name: Java CI with Maven and Selenium
 
 on:
   push:
@@ -7,11 +7,12 @@ on:
     branches: [ "main" ]
 
 jobs:
-  test:
+  build:
+
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Set up JDK 17
@@ -21,28 +22,47 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    - name: Install Chrome
+    - name: Install dependencies and matching Chrome + ChromeDriver
       run: |
         sudo apt-get update
-        sudo apt-get install -y wget unzip xvfb
+        sudo apt-get install -y wget unzip curl jq xvfb
+
+        # Instalar Google Chrome estable
         wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
         sudo apt install -y ./google-chrome-stable_current_amd64.deb
+
+        # Obtener la versión instalada de Chrome
+        CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+')
+        echo "Installed Chrome version: $CHROME_VERSION"
+
+        # Descargar el ChromeDriver que coincida
+        CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" \
+          | jq -r --arg ver "$CHROME_VERSION" '.channels.Stable.versions[] 
+          | select(.version | startswith($ver)) 
+          | .downloads.chromedriver[] 
+          | select(.platform == "linux64") 
+          | .url' | head -n 1)
+
+        echo "Downloading ChromeDriver from: $CHROMEDRIVER_URL"
+        wget -O chromedriver.zip "$CHROMEDRIVER_URL"
+        unzip chromedriver.zip
+        sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
+        sudo chmod +x /usr/bin/chromedriver
+
+        # Verificar versión final
+        chromedriver --version
         google-chrome --version
 
-    - name: Start xvfb
+    - name: Start xvfb (virtual display)
       run: |
         export DISPLAY=:99
         nohup Xvfb :99 -ac -screen 0 1920x1080x24 > /dev/null 2>&1 &
-        echo "DISPLAY set to $DISPLAY"
+        echo "Started virtual display at DISPLAY=:99"
+        echo "DISPLAY=:99" >> $GITHUB_ENV
 
-    - name: Run Tests with Maven
-      env:
-        DISPLAY: :99
+    - name: Run Maven tests
       run: mvn clean test
 
-    - name: Upload test reports (optional)
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: testng-reports
-        path: target/surefire-reports/
+    - name: Update dependency graph (optional)
+      uses: advanced-security/maven-dependency-submission-action@v4
+
